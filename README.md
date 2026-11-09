@@ -24,7 +24,7 @@ The migrations in `supabase/migrations` have already been applied to the FrRouti
 ## Features
 
 - Dashboard, weekly date selection, routine search, category filters.
-- Ten suggested daily habits and twelve original college classes, editable per account.
+- Ten suggested daily habits. The personal twelve-class timetable is configured privately in the hosted database and loads on account sign-in; guest mode starts without personal classes. Classes are editable per account.
 - Habit create/edit/archive/restore; per-date completion and persisted progress.
 - Combined chronological class/routine schedule. Forms reject class conflicts, with a 20-minute preparation buffer between habits and classes.
 - Statistics over 7 or 30 days; real completion counts, learning minutes, streaks, and achievements.
@@ -32,12 +32,12 @@ The migrations in `supabase/migrations` have already been applied to the FrRouti
 - 25-minute focus timer, foreground browser reminders, profile editing, JSON export.
 - Email/password signup/login, password recovery, persisted sessions, private per-user records.
 - Guest mode stores data on the current browser. Guest records are intentionally separate from account data and are not uploaded automatically. Export them before clearing browser storage.
-- PWA icons from the supplied brand image, standalone manifest, offline shell caching. The original wordmarks are used for branding and the initial loading screen.
+- PWA icons from the supplied brand image, standalone manifest, offline shell caching. The original wordmarks are used for branding and the initial loading screen. Fonts are self-hosted with their OFL licenses.
 
 ## Behavior and limits
 
 - WITA (`Asia/Makassar`, UTC+8), matching the supplied Samarinda schedule. Days change at WITA midnight.
-- New accounts receive their own clean starter habits/classes on first successful login. Initialization is atomic and idempotent. No fake completed tasks, streaks, chart values, or unlocked badges are seeded.
+- New accounts receive their own clean starter habits on first successful login. This hosted project additionally provisions the private class template; public migration source intentionally omits personal timetable values. Initialization is atomic and idempotent. No fake completed tasks, streaks, chart values, or unlocked badges are seeded.
 - Streak increments at 70% completion of a day's scheduled active habits; an unfinished current day does not erase yesterday's streak. Statistics use current active schedules since each habit's creation date; editing/archiving a habit can change historical percentages. Archived records retain completion history.
 - Target progress is entered manually and is not inferred from a timer or routine name.
 - Account data loads on sign-in and refresh, and writes go directly to Supabase. Refresh another device to fetch its latest state. Offline account edits are blocked; guest changes remain available locally. There is no background sync queue.

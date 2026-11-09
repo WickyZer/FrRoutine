@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env*
+!.env.example
+*.tsbuildinfo
+.openai/
+
+supabase/.temp/
+supabase/.branches/
+
+docs/screenshots/
