@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
   ArrowRight,
   LoaderCircle,
@@ -11,32 +11,84 @@ import {
 import type { Habit, ClassItem, Goal } from "../types";
 import { DAYS, FULL_DAYS, conflicts, minutes, newId } from "../data";
 import { supabase } from "../supabase";
+import {
+  authErrorCode,
+  authErrorMessage,
+  needsEmailConfirmation,
+  type AuthMode,
+} from "../authFeedback";
 import { HabitIcon } from "./Visuals";
 export function AuthForm({ onDone }: { onDone: () => void }) {
-  const [mode, setMode] = useState<"login" | "register" | "reset">("login");
+  const [mode, setMode] = useState<AuthMode>("login");
+  const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [unconfirmed, setUnconfirmed] = useState(false);
+  const [retryAt, setRetryAt] = useState(0);
+  const [clock, setClock] = useState(Date.now());
+  const countdown = Math.max(0, Math.ceil((retryAt - clock) / 1000));
+  useEffect(() => {
+    if (!retryAt) return;
+    const timer = window.setInterval(() => setClock(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [retryAt]);
+  function changeMode(next: AuthMode) {
+    setMode(next);
+    setError("");
+    setMessage("");
+    setUnconfirmed(false);
+  }
+  async function resendConfirmation() {
+    if (!email.trim() || busy || countdown > 0) return;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: email.trim(),
+        options: { emailRedirectTo: window.location.origin },
+      });
+      if (error) throw error;
+      setMessage(
+        "Email verifikasi diminta ulang. Periksa kotak masuk dan folder spam. Jika email belum tiba, tunggu beberapa menit sebelum mencoba lagi.",
+      );
+      setRetryAt(Date.now() + 60000);
+      setClock(Date.now());
+    } catch (error) {
+      setError(authErrorMessage(error));
+      if (authErrorCode(error) === "over_email_send_rate_limit") {
+        setRetryAt(Date.now() + 60000);
+        setClock(Date.now());
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
     setError("");
     setMessage("");
+    setUnconfirmed(false);
     const f = new FormData(e.currentTarget);
-    const email = String(f.get("email")).trim();
-    const password = String(f.get("password"));
+    const enteredEmail = String(f.get("email")).trim();
+    setEmail(enteredEmail);
+    const password = String(f.get("password") ?? "");
     try {
       if (mode === "reset") {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: window.location.origin,
-        });
+        const { error } = await supabase.auth.resetPasswordForEmail(
+          enteredEmail,
+          { redirectTo: window.location.origin },
+        );
         if (error) throw error;
         setMessage(
-          "Tautan pemulihan sudah dikirim jika email terdaftar. Periksa kotak masuk Anda.",
+          "Tautan pemulihan sudah dikirim jika email terdaftar. Periksa kotak masuk dan folder spam.",
         );
       } else if (mode === "register") {
         const { data, error } = await supabase.auth.signUp({
-          email,
+          email: enteredEmail,
           password,
           options: {
             data: { name: String(f.get("name")).trim() },
@@ -45,20 +97,23 @@ export function AuthForm({ onDone }: { onDone: () => void }) {
         });
         if (error) throw error;
         if (data.session) onDone();
-        else
-          setMessage(
-            "Akun dibuat. Konfirmasi melalui email, lalu kembali ke sini untuk masuk.",
-          );
+        else {
+          setMode("confirm");
+          setUnconfirmed(true);
+          setRetryAt(Date.now() + 60000);
+          setClock(Date.now());
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
-          email,
+          email: enteredEmail,
           password,
         });
         if (error) throw error;
         onDone();
       }
-    } catch (err) {
-      setError((err as Error).message);
+    } catch (error) {
+      setError(authErrorMessage(error));
+      setUnconfirmed(needsEmailConfirmation(error));
     } finally {
       setBusy(false);
     }
@@ -69,112 +124,193 @@ export function AuthForm({ onDone }: { onDone: () => void }) {
         <img src="/brand/wordmark.webp" alt="FrRoutine" />
         <p>Satu ruang untuk tumbuh, di semua perangkat Anda.</p>
       </div>
-      {mode !== "reset" && (
+      {mode !== "reset" && mode !== "confirm" && (
         <div className="segmented">
           <button
+            type="button"
+            disabled={busy}
             className={mode === "login" ? "selected" : ""}
-            onClick={() => {
-              setMode("login");
-              setError("");
-              setMessage("");
-            }}
+            onClick={() => changeMode("login")}
           >
             Masuk
           </button>
           <button
+            type="button"
+            disabled={busy}
             className={mode === "register" ? "selected" : ""}
-            onClick={() => {
-              setMode("register");
-              setError("");
-              setMessage("");
-            }}
+            onClick={() => changeMode("register")}
           >
             Daftar
           </button>
         </div>
       )}
-      <form onSubmit={submit} className="form-stack">
-        {mode === "register" && (
-          <label>
-            Nama Anda
-            <input
-              name="name"
-              autoComplete="name"
-              required
-              maxLength={60}
-              placeholder="Nama lengkap Anda"
-            />
-          </label>
-        )}
-        <label>
-          Email
-          <div className="input-icon">
-            <Mail size={18} />
-            <input
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              placeholder="nama@email.com"
-            />
-          </div>
-        </label>
-        {mode !== "reset" && (
-          <label>
-            Password
-            <div className="input-icon">
-              <LockKeyhole size={18} />
+      {mode === "confirm" ? (
+        <div className="confirmation-panel">
+          <span className="notification-hero">
+            <Mail size={30} aria-hidden="true" />
+          </span>
+          <h3>Satu langkah lagi.</h3>
+          <p>
+            Akun sudah didaftarkan. Verifikasi email terlebih dahulu agar Anda
+            bisa masuk.
+          </p>
+          <strong>{email}</strong>
+          <ol>
+            <li>Buka kotak masuk atau folder spam.</li>
+            <li>Klik tautan konfirmasi dari FrRoutine/Supabase.</li>
+            <li>Kembali ke sini, lalu masuk dengan password yang sama.</li>
+          </ol>
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          )}
+          {message && (
+            <p className="form-success" role="status">
+              {message}
+            </p>
+          )}
+          <button
+            className="primary full"
+            type="button"
+            disabled={busy}
+            onClick={() => changeMode("login")}
+          >
+            Sudah verifikasi? Masuk
+            <ArrowRight size={17} />
+          </button>
+          <button
+            className="text-button full"
+            type="button"
+            disabled={busy || countdown > 0}
+            onClick={() => void resendConfirmation()}
+          >
+            {busy
+              ? "Mengirim…"
+              : countdown > 0
+                ? `Kirim ulang dalam ${countdown} detik`
+                : "Kirim ulang email verifikasi"}
+          </button>
+          <button
+            className="text-button full"
+            type="button"
+            disabled={busy}
+            onClick={() => changeMode("register")}
+          >
+            Perbaiki alamat email
+          </button>
+        </div>
+      ) : (
+        <form onSubmit={submit} className="form-stack">
+          {mode === "register" && (
+            <label>
+              Nama Anda
               <input
-                name="password"
-                type="password"
-                autoComplete={
-                  mode === "register" ? "new-password" : "current-password"
-                }
-                minLength={8}
+                name="name"
+                autoComplete="name"
                 required
-                placeholder="Minimal 8 karakter"
+                maxLength={60}
+                placeholder="Nama lengkap Anda"
+              />
+            </label>
+          )}
+          <label>
+            Email
+            <div className="input-icon">
+              <Mail size={18} aria-hidden="true" />
+              <input
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                placeholder="nama@email.com"
+                value={email}
+                onInput={(e) => {
+                  setEmail(e.currentTarget.value);
+                  setUnconfirmed(false);
+                }}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
           </label>
-        )}
-        {error && (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        )}
-        {message && (
-          <p className="form-success" role="status">
-            {message}
-          </p>
-        )}
-        <button className="primary" disabled={busy}>
-          {busy ? (
-            <LoaderCircle className="spin" size={18} />
-          ) : (
-            <ArrowRight size={18} />
-          )}{" "}
-          {mode === "register"
-            ? "Buat akun"
-            : mode === "reset"
-              ? "Kirim tautan pemulihan"
-              : "Masuk ke FrRoutine"}
-        </button>
-        <button
-          type="button"
-          className="text-button"
-          onClick={() => {
-            setMode(mode === "reset" ? "login" : "reset");
-            setError("");
-            setMessage("");
-          }}
-        >
-          {mode === "reset" ? "Kembali ke masuk" : "Lupa password?"}
-        </button>
-      </form>
+          {mode !== "reset" && (
+            <label>
+              Password
+              <div className="input-icon">
+                <LockKeyhole size={18} aria-hidden="true" />
+                <input
+                  name="password"
+                  type="password"
+                  autoComplete={
+                    mode === "register" ? "new-password" : "current-password"
+                  }
+                  minLength={mode === "register" ? 8 : undefined}
+                  required
+                  placeholder={
+                    mode === "register"
+                      ? "Minimal 8 karakter"
+                      : "Password akun Anda"
+                  }
+                />
+              </div>
+            </label>
+          )}
+          {mode === "register" && (
+            <p className="auth-hint">
+              Setelah mendaftar, Anda perlu mengonfirmasi email satu kali
+              sebelum masuk.
+            </p>
+          )}
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          )}
+          {message && (
+            <p className="form-success" role="status">
+              {message}
+            </p>
+          )}
+          {unconfirmed && (
+            <button
+              type="button"
+              className="secondary full"
+              disabled={busy || countdown > 0}
+              onClick={() => void resendConfirmation()}
+            >
+              <Mail size={17} />
+              {countdown > 0
+                ? `Kirim ulang dalam ${countdown} detik`
+                : "Kirim ulang email verifikasi"}
+            </button>
+          )}
+          <button className="primary" disabled={busy}>
+            {busy ? (
+              <LoaderCircle className="spin" size={18} />
+            ) : (
+              <ArrowRight size={18} />
+            )}{" "}
+            {mode === "register"
+              ? "Daftar & verifikasi email"
+              : mode === "reset"
+                ? "Kirim tautan pemulihan"
+                : "Masuk ke FrRoutine"}
+          </button>
+          <button
+            type="button"
+            className="text-button"
+            disabled={busy}
+            onClick={() => changeMode(mode === "reset" ? "login" : "reset")}
+          >
+            {mode === "reset" ? "Kembali ke masuk" : "Lupa password?"}
+          </button>
+        </form>
+      )}
       <div className="privacy-note">
         <ShieldCheck size={16} />
         <span>
-          Data akun Anda tersimpan privat dan terpisah dari mode perangkat.
+          Password tersimpan dengan aman. Pemulihan akun menggunakan email
+          terdaftar.
         </span>
       </div>
     </>

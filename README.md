@@ -62,3 +62,9 @@ Email inbox confirmation, password recovery delivery, final-domain installation,
 ## Brand and UI
 
 Cream `#F3F4F5`, orange `#FF9408`, burnt orange `#CA3F16`, crimson `#95122C`, dark `#100C08`. CSS glass surfaces use layered translucency, saturation, blur, rim lighting, and soft shadows with a solid fallback. Navigation and illustrations use genuine SVG (Lucide and purpose-built artwork). Supplied raster logos retain their original visual identity.
+
+## Email confirmation troubleshooting
+
+Registration requires one-time email confirmation. A new account without a session now opens an explicit verification step, rather than implying it can log in immediately. An unconfirmed login shows Indonesian instructions and a resend confirmation action. Resends respect a 60-second UI cooldown and report delivery-rate-limit errors. Password reset remains available separately.
+
+Passwords remain managed by Supabase Auth as bcrypt hashes; plaintext passwords are never copied into profiles, user metadata, logs, analytics, or browser storage. Database administrators can inspect confirmation status without reading passwords. Site URL and redirect allowlist must include the production origin `https://frroutine.vercel.app` in the Supabase dashboard. Existing unconfirmed users still need to click their confirmation email; this UI change does not silently verify email ownership.

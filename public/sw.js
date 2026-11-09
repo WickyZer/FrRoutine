@@ -1,4 +1,4 @@
-const CACHE = "frroutine-shell-v1";
+const CACHE = "frroutine-shell-v2";
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
