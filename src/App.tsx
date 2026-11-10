@@ -1,3 +1,4 @@
+import GlassSettings, { useGlassAppearance } from "./components/GlassSettings";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ArrowDownToLine,
@@ -210,6 +211,7 @@ function FocusTimer() {
   );
 }
 export default function App() {
+  const glassAppearance = useGlassAppearance();
   const model = useRoutine();
   const { data, user, busy, loading, issue, ready } = model;
   const [page, setPage] = useState<Page>(() => {
@@ -689,7 +691,10 @@ export default function App() {
     </Panel>
   );
   return (
-    <div className={`app ${collapsed ? "sidebar-collapsed" : ""}`}>
+    <div
+      className={`app ${collapsed ? "sidebar-collapsed" : ""}`}
+      style={glassAppearance.style}
+    >
       <div className="ambient ambient-one" />
       <div className="ambient ambient-two" />
       <div className="ribbon ribbon-one" />
@@ -1794,6 +1799,12 @@ export default function App() {
                   </button>
                 </form>
               </Panel>
+              <GlassSettings
+                value={glassAppearance.transparency}
+                onChange={glassAppearance.setTransparency}
+                saveError={glassAppearance.saveError}
+              />
+
               <Panel>
                 <SectionTitle icon={LayoutGrid} title="Ruang Anda" />
                 <div className="profile-links">

@@ -4024,3 +4024,15 @@ legend {
 @media(max-height:700px) and (min-width:761px){.sidebar .inspiration-card{display:none}.sidebar .brand{min-height:45px;height:45px;margin-bottom:14px}.sidebar .nav-caption{margin-bottom:8px}.sidebar nav{min-height:0;overflow-y:auto;scrollbar-width:thin}.sidebar-bottom{padding-top:10px}.sidebar .nav-item{min-height:44px;flex-shrink:0}}
 .app-recovery{display:flex;flex-direction:column;min-height:100dvh;justify-content:center;align-items:center;gap:22px;text-align:center;padding:24px}.app-recovery h1{font-size:25px;letter-spacing:-1px}.app-recovery p{font-size:13px;color:var(--muted);max-width:360px}
 .confirmation-panel{text-align:center;display:flex;flex-direction:column;gap:15px}.confirmation-panel .notification-hero{margin:0 auto 5px}.confirmation-panel h3{font-size:23px}.confirmation-panel>p{font-size:12px;color:var(--muted)}.confirmation-panel>strong{font-size:13px;color:var(--accent);overflow-wrap:anywhere}.confirmation-panel ol{text-align:left;margin:1px 0 7px;padding-left:22px;font-size:12px;color:var(--muted);line-height:1.8}.confirmation-panel li+li{margin-top:7px}.confirmation-panel .full{white-space:normal}.auth-hint{font-size:11px;color:var(--muted);line-height:1.7}
+/* User-controlled glass surface alpha; never fade content or controls. */
+.app .panel,.app .glass{background:linear-gradient(135deg,rgba(255,255,255,var(--glass-highlight,.748)),rgba(255,252,248,var(--glass-body,.685)) 55%,rgba(255,244,231,var(--glass-tail,.713)))}
+.app .panel.solid{background:rgba(255,253,250,var(--glass-solid,.888))}
+.app .sidebar,.app .bottom-nav{background:linear-gradient(135deg,rgba(255,255,255,var(--glass-highlight,.748)),rgba(249,233,217,var(--glass-chrome,.7655)))}
+.app .modal{background:linear-gradient(140deg,rgba(255,252,248,var(--glass-dialog,.923)),rgba(249,240,231,var(--glass-dialog,.923)))}
+.appearance-settings>label{display:block;font-size:13px;font-weight:600;margin-bottom:8px;color:var(--ink)}
+.appearance-settings>p{line-height:1.7;font-size:12px}
+.appearance-settings input[type=range]{display:block;accent-color:var(--burnt);width:100%;height:44px;margin:10px 0 0;cursor:pointer;background:transparent}
+.transparency-scale{display:flex;justify-content:space-between;gap:12px;font-size:11px;color:var(--muted)}
+.appearance-presets{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}.appearance-presets button{flex:1;min-height:44px;border:1px solid #d9c5b2;border-radius:12px;font-size:12px;background:#ffffff65;color:#78553e}.appearance-presets button.selected{background:#f8debf;border-color:#ba7440;color:#7c3519;box-shadow:inset 0 1px #fff9}
+.appearance-bottom{display:flex;gap:10px;align-items:center;margin-top:14px}.appearance-bottom p{flex:1;font-size:11px;line-height:1.7}.appearance-bottom button{flex-shrink:0}
+@supports not (backdrop-filter:blur(10px)){.app .panel,.app .glass,.app .modal{background:rgba(255,250,243,var(--glass-solid,.888))}}
