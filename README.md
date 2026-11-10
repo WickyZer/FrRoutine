@@ -29,7 +29,9 @@ The migrations in `supabase/migrations` have already been applied to the FrRouti
 - Combined chronological class/routine schedule. Forms reject class conflicts, with a 20-minute preparation buffer between habits and classes.
 - Statistics over 7 or 30 days; real completion counts, learning minutes, streaks, and achievements.
 - Goals with manually adjustable progress; daily journals and mood tracking.
-- 25-minute focus timer, foreground browser reminders, profile editing, JSON export.
+- Automatic schedule preview under Jadwal kuliah: configurable active hours, 20–60-minute class buffers, and 0–15-minute gaps. Finds a common recurring hour per habit; reports unplaceable habits without dropping their days. Apply saves changed habits in one owner-scoped batch.
+- Focus/Pomodoro: 15/25/45/60-minute focus and 5/10/15-minute breaks, optional routine association, pause/resume/reset, floating timer, and completed-session history. Explicitly mark a routine complete after a finished session.
+- Foreground reminders for classes and unfinished routines, 0/5/10/15/30-minute advance notice, separate type toggles, in-app feedback, and optional browser notification permission/test. Profile editing and JSON export.
 - Email/password signup/login, password recovery, persisted sessions, private per-user records.
 - Guest mode stores data on the current browser. Guest records are intentionally separate from account data and are not uploaded automatically. Export them before clearing browser storage.
 - PWA icons from the supplied brand image, standalone manifest, offline shell caching. The original wordmarks are used for branding and the initial loading screen. Fonts are self-hosted with their OFL licenses.
@@ -41,7 +43,8 @@ The migrations in `supabase/migrations` have already been applied to the FrRouti
 - Streak increments at 70% completion of a day's scheduled active habits; an unfinished current day does not erase yesterday's streak. Statistics use current active schedules since each habit's creation date; editing/archiving a habit can change historical percentages. Archived records retain completion history.
 - Target progress is entered manually and is not inferred from a timer or routine name.
 - Account data loads on sign-in and refresh, and writes go directly to Supabase. Refresh another device to fetch its latest state. Offline account edits are blocked; guest changes remain available locally. There is no background sync queue.
-- Notification permission is requested only after a user action. Reminders work while this page is open and notifications are allowed. Closed-app push notifications are not implemented. A focus timer ends when its dialog/page closes.
+- Notification permission is requested only after a user action. In-app reminders work while this page is open; optional system notifications need browser permission. Closed-app push notifications are not implemented, and sleeping/throttled browsers can delay delivery. Completed routines are excluded; deliveries are deduplicated per device/account/event.
+- Focus deadlines survive dialog close and reload on the same device. On reopening after the deadline, a focus session is recorded once; breaks are not counted as focus. Focus history (up to 300 completed sessions) and reminder preferences are device-local, account-scoped, and not synced to Supabase. Clearing browser storage removes them. Existing completion statistics only change when the user explicitly marks a routine complete.
 - PWA installation/service workers require HTTPS (or localhost). Installation and email redirect verification must be checked on the final Vercel HTTPS domain. The local HTTP preview cannot validate those browser capabilities.
 - JSON export is a backup/download; importing backups is not included.
 

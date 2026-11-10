@@ -215,6 +215,30 @@ export function useRoutine() {
             : [...d.habits, habit],
         }),
       ),
+    saveHabits: (habits: Habit[]) =>
+      mutate(
+        async () => {
+          const result = await supabase
+            .from("habits")
+            .upsert(habits.map((h) => ({ ...h, user_id: uid() })))
+            .select("id");
+          return {
+            error:
+              result.error ??
+              (result.data?.length !== habits.length
+                ? new Error(
+                    "Tidak semua jadwal tersimpan. Muat ulang data akun.",
+                  )
+                : null),
+          };
+        },
+        (d) => ({
+          ...d,
+          habits: d.habits.map(
+            (h) => habits.find((next) => next.id === h.id) ?? h,
+          ),
+        }),
+      ),
     saveClass: (item: ClassItem) =>
       mutate(
         () => supabase.from("classes").upsert({ ...item, user_id: uid() }),

@@ -1,4 +1,4 @@
-const CACHE = "frroutine-shell-v3";
+const CACHE = "frroutine-shell-v4";
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
@@ -58,4 +58,23 @@ self.addEventListener("fetch", (event) => {
           }),
       ),
     );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = new URL("/#schedule", self.location.origin).href;
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then(async (windows) => {
+        const open = windows.find(
+          (client) => new URL(client.url).origin === self.location.origin,
+        );
+        if (open) {
+          await open.navigate(url);
+          return open.focus();
+        }
+        return self.clients.openWindow(url);
+      }),
+  );
 });

@@ -1,3 +1,8 @@
+import AutoPlanner from "./components/AutoPlanner";
+import FocusRoom, { timerText } from "./components/FocusRoom";
+import ReminderSettings from "./components/ReminderSettings";
+import { useFocus } from "./useFocus";
+import { useReminders, systemNotification } from "./useReminders";
 import GlassSettings, { useGlassAppearance } from "./components/GlassSettings";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
@@ -86,6 +91,7 @@ type Dialog =
   | "habit"
   | "class"
   | "goal"
+  | "planner"
   | "notifications"
   | "focus"
   | "password"
@@ -152,64 +158,6 @@ function SectionTitle({
     </div>
   );
 }
-function FocusTimer() {
-  const [left, setLeft] = useState(25 * 60);
-  const [running, setRunning] = useState(false);
-  const end = useRef(0);
-  useEffect(() => {
-    if (!running) return;
-    const timer = window.setInterval(() => {
-      const remain = Math.max(0, Math.ceil((end.current - Date.now()) / 1000));
-      setLeft(remain);
-      if (remain === 0) setRunning(false);
-    }, 250);
-    return () => window.clearInterval(timer);
-  }, [running]);
-  return (
-    <div className="focus-content">
-      <div className="timer-face">
-        <Timer size={25} />
-        <strong>
-          {String(Math.floor(left / 60)).padStart(2, "0")}
-          <span>:</span>
-          {String(left % 60).padStart(2, "0")}
-        </strong>
-        <p>
-          {left === 0
-            ? "Sesi selesai. Waktunya istirahat."
-            : "Satu hal dalam satu waktu."}
-        </p>
-      </div>
-      <button
-        className="primary"
-        onClick={() => {
-          if (!running) {
-            if (!left) {
-              setLeft(1500);
-              end.current = Date.now() + 1500000;
-            } else end.current = Date.now() + left * 1000;
-          }
-          setRunning(!running);
-        }}
-      >
-        {running ? "Jeda" : left === 0 ? "Mulai sesi baru" : "Mulai fokus"}
-      </button>
-      <button
-        className="text-button"
-        onClick={() => {
-          setRunning(false);
-          setLeft(1500);
-        }}
-      >
-        Atur ulang
-      </button>
-      <p className="helper">
-        Timer berjalan selama halaman ini terbuka. Menutup dialog akan
-        mengakhiri sesi.
-      </p>
-    </div>
-  );
-}
 export default function App() {
   const glassAppearance = useGlassAppearance();
   const model = useRoutine();
@@ -252,6 +200,32 @@ export default function App() {
     window.clearTimeout(toastTimer.current);
     toastTimer.current = window.setTimeout(() => setToast(""), 5000);
   }
+  const focus = useFocus(user?.id ?? "guest");
+  const reminders = useReminders(
+    data,
+    user?.id ?? "guest",
+    ready && !loading && !issue,
+    notify,
+  );
+  const focusNotice = useRef("");
+  useEffect(() => {
+    if (
+      focus.state.status === "finished" &&
+      focusNotice.current !== focus.state.id
+    ) {
+      focusNotice.current = focus.state.id;
+      const message =
+        focus.state.phase === "focus"
+          ? "Sesi fokus selesai dan tercatat. Waktunya istirahat."
+          : "Istirahat selesai. Siap kembali fokus?";
+      notify(message);
+      void systemNotification(
+        "FrRoutine · Sesi selesai",
+        message,
+        focus.state.id,
+      );
+    }
+  }, [focus.state.status, focus.state.id]);
   function navigate(next: Page) {
     setPage(next);
     window.location.hash = next;
@@ -332,37 +306,6 @@ export default function App() {
     }, 30000);
     return () => clearInterval(timer);
   }, [today, data.profile.timezone]);
-  useEffect(() => {
-    if (!("Notification" in window) || Notification.permission !== "granted")
-      return;
-    const tick = () => {
-      const current = new Date();
-      const key = dateKey(current, data.profile.timezone);
-      const time = new Intl.DateTimeFormat("en-GB", {
-        timeZone: data.profile.timezone,
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      }).format(current);
-      data.habits
-        .filter((h) => scheduled(h, key) && h.time.slice(0, 5) === time)
-        .forEach((h) => {
-          const k = `frroutine.reminder.${user?.id ?? "guest"}.${key}.${h.id}`;
-          if (
-            !sessionStorage.getItem(k) &&
-            !data.completions.some((c) => c.habit_id === h.id && c.date === key)
-          ) {
-            new Notification("Waktunya rutinitas Anda", {
-              body: h.title,
-              icon: "/icons/icon-192.png",
-            });
-            sessionStorage.setItem(k, "1");
-          }
-        });
-    };
-    const timer = window.setInterval(tick, 30000);
-    return () => clearInterval(timer);
-  }, [data, user?.id]);
   const stats = dayStats(data, selected);
   const active = data.habits.filter((h) => !h.archived);
   const scheduledHabits = active
@@ -1256,6 +1199,23 @@ export default function App() {
               )}
             </Panel>
             <div className="routine-side">
+              <Panel className="planner-card">
+                <span className="heading-icon">
+                  <Sparkles size={24} />
+                </span>
+                <h3>Temukan ritme terbaik.</h3>
+                <p>
+                  Susun rutinitas di sela kuliah, dengan waktu persiapan dan
+                  istirahat.
+                </p>
+                <button
+                  className="primary full"
+                  disabled={busy || loading}
+                  onClick={() => setDialog("planner")}
+                >
+                  <Sparkles size={17} /> Jadwal otomatis
+                </button>
+              </Panel>
               <Panel className="tip-card">
                 <GraduationCap size={27} />
                 <h3>Kuliah tetap prioritas.</h3>
@@ -1946,6 +1906,30 @@ export default function App() {
           <span>Profil</span>
         </button>
       </nav>
+      {dialog !== "focus" && focus.state.status !== "idle" && (
+        <button
+          className="focus-dock glass"
+          onClick={() => setDialog("focus")}
+          aria-label="Buka mode fokus"
+          title="Buka mode fokus"
+        >
+          <Timer size={22} />
+          <span>
+            <strong>
+              {timerText(focus.left)} ·{" "}
+              {focus.state.phase === "focus" ? "Fokus" : "Istirahat"}
+            </strong>
+            <small>
+              {focus.state.status === "finished"
+                ? "Sesi selesai · lihat hasil"
+                : focus.state.status === "paused"
+                  ? "Dijeda · lanjutkan sesi"
+                  : focus.state.title}
+            </small>
+          </span>
+          <ArrowUpRight size={18} />
+        </button>
+      )}
       {toast && (
         <div className="toast" role="status">
           <Sparkles size={17} />
@@ -1971,13 +1955,18 @@ export default function App() {
                     : "Tambah kelas."
                   : dialog === "goal"
                     ? "Satu tujuan baru."
-                    : dialog === "focus"
-                      ? "Ruang fokus."
-                      : dialog === "password"
-                        ? "Password baru."
-                        : "Pengingat Anda."
+                    : dialog === "planner"
+                      ? "Jadwal otomatis."
+                      : dialog === "focus"
+                        ? "Ruang fokus."
+                        : dialog === "password"
+                          ? "Password baru."
+                          : "Pengingat Anda."
           }
-          onClose={() => setDialog(null)}
+          wide={dialog === "planner"}
+          onClose={() => {
+            if (!busy) setDialog(null);
+          }}
         >
           {dialog === "auth" ? (
             <AuthForm
@@ -2039,8 +2028,37 @@ export default function App() {
                 notify("Target baru dibuat.");
               }}
             />
+          ) : dialog === "planner" ? (
+            <AutoPlanner
+              data={data}
+              busy={busy}
+              onApply={async (habits) => {
+                await model.saveHabits(habits);
+                setDialog(null);
+                notify(
+                  "Jadwal otomatis tersimpan. Rutinitas sudah disesuaikan.",
+                );
+              }}
+            />
           ) : dialog === "focus" ? (
-            <FocusTimer />
+            <FocusRoom
+              focus={focus}
+              habits={data.habits}
+              completions={data.completions}
+              today={today}
+              busy={busy}
+              onComplete={async (id) => {
+                if (
+                  !data.completions.some(
+                    (c) => c.habit_id === id && c.date === today,
+                  )
+                )
+                  await run(
+                    () => model.toggle(id, today),
+                    "Rutinitas ditandai selesai.",
+                  );
+              }}
+            />
           ) : dialog === "password" ? (
             <PasswordForm
               onDone={() => {
@@ -2049,56 +2067,12 @@ export default function App() {
               }}
             />
           ) : (
-            <div className="notification-content">
-              <span className="notification-hero">
-                <Bell size={32} />
-              </span>
-              <h3>Sedikit dorongan, tepat waktu.</h3>
-              <p>
-                Aktifkan notifikasi untuk rutinitas pada jam terjadwal.
-                Pengingat bekerja saat FrRoutine terbuka dan browser mengizinkan
-                notifikasi.
-              </p>
-              <button
-                className="primary full"
-                onClick={async () => {
-                  if (!("Notification" in window)) {
-                    notify("Browser ini belum mendukung notifikasi.");
-                    return;
-                  }
-                  const result = await Notification.requestPermission();
-                  notify(
-                    result === "granted"
-                      ? "Pengingat aktif selama aplikasi terbuka."
-                      : "Izin belum diberikan. Anda dapat mengubahnya dari pengaturan browser.",
-                  );
-                }}
-              >
-                Aktifkan pengingat
-                <Bell size={17} />
-              </button>
-              <div className="upcoming-reminders">
-                <h4>Rutinitas berikutnya hari ini</h4>
-                {active
-                  .filter(
-                    (h) =>
-                      scheduled(h, today) &&
-                      h.time.slice(0, 5) >= currentTime &&
-                      !data.completions.some(
-                        (c) => c.habit_id === h.id && c.date === today,
-                      ),
-                  )
-                  .sort((a, b) => a.time.localeCompare(b.time))
-                  .slice(0, 5)
-                  .map((h) => (
-                    <div key={h.id}>
-                      <Clock3 size={15} />
-                      <span>{h.title}</span>
-                      <strong>{h.time.slice(0, 5)}</strong>
-                    </div>
-                  ))}
-              </div>
-            </div>
+            <ReminderSettings
+              data={data}
+              settings={reminders.settings}
+              onChange={reminders.setSettings}
+              saveError={reminders.saveError}
+            />
           )}
         </Modal>
       )}
